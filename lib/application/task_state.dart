@@ -14,19 +14,30 @@ class TaskState with _$TaskState {
 }
 
 class TaskNotifier extends StateNotifier<TaskState> {
-  final Isar isar;
+  final Isar? isar;
 
-  TaskNotifier(this.isar) : super(const TaskState.initial());
+  TaskNotifier(this.isar) : super(const TaskState.initial()) {
+    if (isar != null) {
+      loadTasks(); // Optionally start loading tasks immediately
+    } else {
+      state = const TaskState.error("Isar database is not initialized.");
+    }
+  }
 
   Future<void> loadTasks() async {
+    if (isar == null) {
+      state = const TaskState.error("Isar instance is null.");
+      return;
+    }
+
     try {
       state = const TaskState.loading();
 
-      final tasks = await isar.tasks.where().findAll();
+      final tasks = await isar!.tasks.where().findAll();
 
       state = TaskState.loaded(tasks);
     } catch (e) {
-      state = TaskState.error(e.toString());
+      state = TaskState.error("Failed to load tasks: ${e.toString()}");
     }
   }
 
@@ -34,8 +45,8 @@ class TaskNotifier extends StateNotifier<TaskState> {
     try {
       final newTask = Task()..task = text;
 
-      await isar.writeTxn(() async {
-        await isar.tasks.put(newTask);
+      await isar!.writeTxn(() async {
+        await isar!.tasks.put(newTask);
       });
 
       await loadTasks();
@@ -46,8 +57,8 @@ class TaskNotifier extends StateNotifier<TaskState> {
 
   Future<void> updateTask(Task task) async {
     try {
-      await isar.writeTxn(() async {
-        await isar.tasks.put(task);
+      await isar!.writeTxn(() async {
+        await isar!.tasks.put(task);
       });
 
       await loadTasks();
@@ -58,8 +69,8 @@ class TaskNotifier extends StateNotifier<TaskState> {
 
   Future<void> deleteTask(Task task) async {
     try {
-      await isar.writeTxn(() async {
-        await isar.tasks.delete(task.id);
+      await isar!.writeTxn(() async {
+        await isar!.tasks.delete(task.id);
       });
 
       await loadTasks();
